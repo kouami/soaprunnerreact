@@ -18,7 +18,7 @@ public class RestController {
   private Logger logger = LoggerFactory.getLogger(RestController.class);
 
   @PostMapping(path = "/")
-  public String test(@RequestParam Map<String, String> data) {
+  public SoapObject test(@RequestParam Map<String, String> data) {
     SoapObject requestObject = new SoapObject();
     requestObject.setAddress(data.get("address"));
     requestObject.setMessageRequest(data.get("messageRequest"));
@@ -27,9 +27,9 @@ public class RestController {
         SoapRunnerUtils.prepareRequest(
             requestObject.getMessageRequest(), requestObject.getAddress());
 
-    String response = SoapRunnerUtils.prepareResponse(connection);
+    return SoapRunnerUtils.prepareResponse(connection, requestObject);
 
     //logger.info("SoapObject ::: " + data);
-    return response;
+    //return response;
   }
 }

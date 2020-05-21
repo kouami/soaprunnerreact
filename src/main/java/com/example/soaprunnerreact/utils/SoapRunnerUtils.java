@@ -1,5 +1,7 @@
 package com.example.soaprunnerreact.utils;
 
+import com.example.soaprunnerreact.domains.SoapObject;
+
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -45,9 +47,10 @@ public class SoapRunnerUtils {
    * @param connection
    * @return
    */
-  public static String prepareResponse(HttpURLConnection connection) {
+  public static SoapObject prepareResponse(HttpURLConnection connection, SoapObject soapRequestObject) {
     BufferedReader in;
     StringBuilder response = new StringBuilder();
+
 
     try {
       in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
@@ -55,8 +58,10 @@ public class SoapRunnerUtils {
       in.close();
     } catch (IOException e) {
       e.printStackTrace();
+      soapRequestObject.setError(e.getMessage());
     }
 
-    return response.toString();
+    soapRequestObject.setMessageResponse(response.toString());
+    return soapRequestObject;
   }
 }

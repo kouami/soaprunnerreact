@@ -8,5 +8,5 @@ public class SoapObject {
   private String address;
   private String messageRequest;
   private String messageResponse;
-  //private String error;
+  private String error;
 }
