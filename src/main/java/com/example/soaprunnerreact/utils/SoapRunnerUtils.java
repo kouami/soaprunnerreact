@@ -2,14 +2,23 @@ package com.example.soaprunnerreact.utils;
 
 import com.example.soaprunnerreact.domains.SoapObject;
 
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import javax.net.ssl.*;
+import javax.xml.soap.*;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.X509Certificate;
 
 public class SoapRunnerUtils {
+
+  //https://automationrhapsody.com/send-soap-request-over-https-without-valid-certificates/
 
   /**
    * @param message
@@ -63,5 +72,93 @@ public class SoapRunnerUtils {
 
     soapRequestObject.setMessageResponse(response.toString());
     return soapRequestObject;
+  }
+
+
+  public String sendSoapRequest(String endpointUrl, String request) {
+    try {
+      final boolean isHttps = endpointUrl.toLowerCase().startsWith("https");
+      HttpsURLConnection httpsConnection = null;
+      // Open HTTPS connection
+      if (isHttps) {
+        // Create SSL context and trust all certificates
+        SSLContext sslContext = SSLContext.getInstance("SSL");
+        TrustManager[] trustAll
+                = new TrustManager[] {new TrustAllCertificates()};
+        sslContext.init(null, trustAll, new java.security.SecureRandom());
+        // Set trust all certificates context to HttpsURLConnection
+        HttpsURLConnection
+                .setDefaultSSLSocketFactory(sslContext.getSocketFactory());
+        // Open HTTPS connection
+        URL url = new URL(endpointUrl);
+        httpsConnection = (HttpsURLConnection) url.openConnection();
+        // Trust all hosts
+        httpsConnection.setHostnameVerifier(new TrustAllHosts());
+        // Connect
+        httpsConnection.connect();
+      }
+      // Send HTTP SOAP request and get response
+      SOAPConnection soapConnection
+              = SOAPConnectionFactory.newInstance().createConnection();
+
+      SOAPMessage soapMessageRequest = getSoapMessageFromString(request);
+
+      SOAPMessage response = soapConnection.call(soapMessageRequest, endpointUrl);
+      // Close connection
+      soapConnection.close();
+      // Close HTTPS connection
+      if (isHttps) {
+        httpsConnection.disconnect();
+      }
+      return getXMLFromSoapMessage(response);
+    } catch (SOAPException | IOException
+            | NoSuchAlgorithmException | KeyManagementException ex) {
+      // Do Something
+    }
+    return null;
+  }
+
+  private String getXMLFromSoapMessage(SOAPMessage soapMessage) {
+    final StringWriter sw = new StringWriter();
+
+    try {
+      TransformerFactory.newInstance().newTransformer().transform(
+              new DOMSource(soapMessage.getSOAPPart()),
+              new StreamResult(sw));
+    } catch (TransformerException e) {
+      throw new RuntimeException(e);
+    }
+    System.out.println(sw.toString());
+    return sw.toString();
+  }
+
+  private SOAPMessage getSoapMessageFromString(String xml) throws SOAPException, IOException {
+    MessageFactory factory = MessageFactory.newInstance();
+    SOAPMessage message = factory.createMessage(new MimeHeaders(), new ByteArrayInputStream(xml.getBytes(Charset.forName("UTF-8"))));
+    return message;
+  }
+
+  /**
+   * Dummy class implementing HostnameVerifier to trust all host names
+   */
+  private static class TrustAllHosts implements HostnameVerifier {
+    public boolean verify(String hostname, SSLSession session) {
+      return true;
+    }
+  }
+
+  /**
+   * Dummy class implementing X509TrustManager to trust all certificates
+   */
+  private static class TrustAllCertificates implements X509TrustManager {
+    public void checkClientTrusted(X509Certificate[] certs, String authType) {
+    }
+
+    public void checkServerTrusted(X509Certificate[] certs, String authType) {
+    }
+
+    public X509Certificate[] getAcceptedIssuers() {
+      return null;
+    }
   }
 }
